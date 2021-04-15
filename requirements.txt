@@ -1,0 +1,16 @@
+cycler
+imageio
+kiwisolver
+matplotlib
+mkl-fft
+mkl-random
+mkl-service
+numpy
+olefile
+Pillow
+pygame
+pyparsing
+python-dateutil
+scipy
+six
+tornado
