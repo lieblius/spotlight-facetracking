@@ -106,18 +106,24 @@ while True:
         spot_pivot_new = spot_pivot @ rot
         spot_pivot_diff = spot_pivot_new - spot_pivot
         
-        for i in range(spot_points_rot.shape[0]):
-            imgr = int(spot_points_rot[i][1] + glob_spot_start[1] - spot_pivot_diff[1])
-            imgc = int(spot_points_rot[i][0] + glob_spot_start[0] - spot_pivot_diff[0])
-            spotr = int(spot_points[i][1])
-            spotc = int(spot_points[i][0])
-            frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
-        #End spot    
+        imgr = spot_points_rot[:,1].astype(np.int32) + int(glob_spot_start[1]) - int(spot_pivot_diff[1])
+        imgc = spot_points_rot[:,0].astype(np.int32) + int(glob_spot_start[0]) - int(spot_pivot_diff[0])
+        spotr = spot_points[:,1].astype(np.int32)
+        spotc = spot_points[:,0].astype(np.int32)
+        
+        frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
+        
+        # for i in range(spot_points_rot.shape[0]):
+        #     imgr = int(spot_points_rot[i][1] + glob_spot_start[1] - spot_pivot_diff[1])
+        #     imgc = int(spot_points_rot[i][0] + glob_spot_start[0] - spot_pivot_diff[0])
+        #     spotr = int(spot_points[i][1])
+        #     spotc = int(spot_points[i][0])
+        #     frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
+        # #End spot    
 
         # frame /= 1.1
         # frame = int(frame)
         # #[r:r+h,c:c+w,:] /= 4
-        cv2.imshow('img3', frame)
         frame = np.double(frame)
 
         frame = frame - 100
@@ -135,14 +141,14 @@ while True:
         # Draw it on image
         # pts = cv2.boxPoints(ret)
         # pts = np.int0(pts)
-        img2 = cv2.polylines(frame, np.int32([pts]), True, 255, 2)
-        cv2.imshow('img2', img2)
+        #img2 = cv2.polylines(frame, np.int32([pts]), True, 255, 2)
+        cv2.imshow('img2', frame)
 
         k = cv2.waitKey(60) & 0xff
         if k == 27:
             break
         else:
-            cv2.imwrite(chr(k) + ".jpg", img2)
+            cv2.imwrite(chr(k) + ".jpg", frame)
 
     else:
         break
