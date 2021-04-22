@@ -66,7 +66,7 @@ spotlight_rgb = cv2.resize(spotlight_raw_rgb, (spot_w, spot_h))
 spotlight_bgr = cv2.resize(spotlight_raw_bgr, (spot_w, spot_h))
 
 rotv = -0.42
-r = np.array([[np.cos(rotv), -np.sin(rotv), 0], [np.sin(rotv), np.cos(rotv), 0], [0, 0, 1]])
+rot= np.array([[np.cos(rotv), -np.sin(rotv), 0], [np.sin(rotv), np.cos(rotv), 0], [0, 0, 1]])
 spot_points = np.ones((1,3))
 
 for i in range(spot_h):
@@ -76,8 +76,8 @@ for i in range(spot_h):
             spot_points = np.vstack((spot_points, point))
 
 spot_points = np.delete(spot_points, 0, 0)
-spot_points_rot = spot_points @ r
-spot_pivot_new = spot_pivot @ r
+spot_points_rot = spot_points @ rot
+spot_pivot_new = spot_pivot @ rot
 
 
 while True:
@@ -101,9 +101,9 @@ while True:
         dif = glob_spot_mid - face_mid
         rotv = -math.atan2(dif[1], dif[0]) - 2.05
         
-        r = np.array([[np.cos(rotv), -np.sin(rotv), 0], [np.sin(rotv), np.cos(rotv), 0], [0, 0, 1]])
-        spot_points_rot = spot_points @ r
-        spot_pivot_new = spot_pivot @ r
+        rot = np.array([[np.cos(rotv), -np.sin(rotv), 0], [np.sin(rotv), np.cos(rotv), 0], [0, 0, 1]])
+        spot_points_rot = spot_points @ rot
+        spot_pivot_new = spot_pivot @ rot
         spot_pivot_diff = spot_pivot_new - spot_pivot
         
         for i in range(spot_points_rot.shape[0]):
@@ -114,11 +114,23 @@ while True:
             frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
         #End spot    
 
-        frame /= 1.1
-        frame = int(frame)
-        #[r:r+h,c:c+w,:] /= 4
-        
+        # frame /= 1.1
+        # frame = int(frame)
+        # #[r:r+h,c:c+w,:] /= 4
+        cv2.imshow('img3', frame)
+        frame = np.double(frame)
 
+        frame = frame - 100
+        frame[int(r):int(r+h),int(c):int(c+w),:] += 100
+        frame[frame < 0] = 0
+        frame = np.uint8(frame)
+
+        # frameHSV  = cv2.cvtColor(frame, cv2.COLOR_RGB2HLS)
+        # frameHSV = frameHSV[:,:,2] - 20
+        # frameHSV[frameHSV < 0] = 0
+        # frame = cv2.cvtColor(frameHSV, cv2.COLOR_HSV2BGR)
+        #
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Draw it on image
         # pts = cv2.boxPoints(ret)
