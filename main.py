@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 
 NUM_ITERAIONS = 10
+DELAY = 30  # in milliseconds
 
 # cap = cv2.VideoCapture('vid2.mp4')
 cap = cv2.VideoCapture(0)
@@ -142,13 +143,12 @@ while True:
         # pts = cv2.boxPoints(ret)
         # pts = np.int0(pts)
         #img2 = cv2.polylines(frame, np.int32([pts]), True, 255, 2)
+
         cv2.imshow('img2', frame)
 
-        k = cv2.waitKey(60) & 0xff
-        if k == 27:
+        # End if escape key is pressed
+        if cv2.waitKey(DELAY) & 0xff == 27:
             break
-        else:
-            cv2.imwrite(chr(k) + ".jpg", frame)
 
     else:
         break
