@@ -81,15 +81,20 @@ spot_points = np.delete(spot_points, 0, 0)
 spot_points_rot = spot_points @ rot
 spot_pivot_new = spot_pivot @ rot
 
-
+# Party
+color_count = 0
+current_color = np.linspace(50,150)
+channel = 0
 while True:
     # time.sleep(1)
     ret, frame = cap.read()
 
     if ret:
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        dst = calcBackProject(hsv, roi_hist)
+        # dst = calcBackProject(hsv, roi_hist)
         # dst = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1 )
+        mask = cv2.inRange(hsv, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
+        dst = mask
 
         # apply meanshift to get the new location
         # ret, track_window = cv2.CamShift(dst, track_window, term_crit)
@@ -131,7 +136,21 @@ while True:
         change = np.where(mask != 255)
 
         frame[change[0], change[1], :] -= 150
+        ###### Party
+        change = np.where(mask == 255)
+        frame[change[0], change[1], channel] += current_color[color_count]
+        if color_count == len(current_color)-1:
+            color_count = 0
+            if channel == 2:
+                channel = 0
+            else:
+                channel += 1
+        else:
+            color_count += 1
+
+        ######
         frame[frame < 0] = 0
+        frame[frame > 255] = 255
         frame = np.uint8(frame)
 
         # Draw it on image

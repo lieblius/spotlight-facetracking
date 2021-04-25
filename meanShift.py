@@ -36,9 +36,9 @@ def calculatePoints(trackWindow, radiusCircleInterest, dst):
     # massCenterRow /= totalIntensity
     # massCenterCol /= totalIntensity
 
-    intensities = dst[int(r + h/4):int(r+h - h/4),int(c + w/4):int(c+w - w/4)]
+    intensities = dst[int(r):int(r+h),int(c):int(c+w)]
     grid = np.indices((dst.shape[0], dst.shape[1]))
-    grid = grid[:,int(r + h/4):int(r+h - h/4),int(c + w/4):int(c+w - w/4)]
+    grid = grid[:,int(r):int(r+h),int(c):int(c+w)]
 
     massCenterRow = grid[0] * intensities
     massCenterCol = grid[1] * intensities
