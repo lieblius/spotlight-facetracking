@@ -119,7 +119,7 @@ while True:
         spotr = spot_points[:,1].astype(np.int32)
         spotc = spot_points[:,0].astype(np.int32)
         
-        frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
+        # frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
 
         frame = np.double(frame)
         r, c, h, w = int(r), int(c), int(h), int(w)
@@ -136,6 +136,7 @@ while True:
         change = np.where(mask != 255)
 
         frame[change[0], change[1], :] -= 150
+        frame[imgr, imgc, :] = spotlight_rgb[spotr, spotc, :3] * 255
         ###### Party
         change = np.where(mask == 255)
         frame[change[0], change[1], channel] += current_color[color_count]
