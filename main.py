@@ -4,6 +4,7 @@ import time
 import math
 from copy import deepcopy
 from meanShift import calculatePoints
+from backProject import calcBackProject
 import sys
 import logging
 from PIL import Image
@@ -13,7 +14,7 @@ import matplotlib.pyplot as plt
 NUM_ITERAIONS = 10
 DELAY = 30  # in milliseconds
 
-# cap = cv2.VideoCapture('vid2.mp4')
+#cap = cv2.VideoCapture('vid2.mp4')
 cap = cv2.VideoCapture(0)
 
 # take first frame of the video
@@ -42,7 +43,7 @@ roi = frame[r:r + h, c:c + w]
 hsv_roi = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 mask = cv2.inRange(hsv_roi, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
 #cv2.imshow('mask', mask)
-roi_hist = cv2.calcHist([hsv_roi], [0], mask, [180], [0, 180])
+roi_hist = cv2.calcHist([hsv_roi], [0, 1], mask, [180, 256], [0, 180, 0, 256])
 cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
 
 # Setup the termination criteria, either 10 iteration or move by at least 1 pt
@@ -87,7 +88,8 @@ while True:
 
     if ret:
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        dst = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1 )
+        dst = calcBackProject(hsv, roi_hist)
+        # dst = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1 )
 
         # apply meanshift to get the new location
         # ret, track_window = cv2.CamShift(dst, track_window, term_crit)
@@ -113,37 +115,29 @@ while True:
         spotc = spot_points[:,0].astype(np.int32)
         
         frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
-        
-        # for i in range(spot_points_rot.shape[0]):
-        #     imgr = int(spot_points_rot[i][1] + glob_spot_start[1] - spot_pivot_diff[1])
-        #     imgc = int(spot_points_rot[i][0] + glob_spot_start[0] - spot_pivot_diff[0])
-        #     spotr = int(spot_points[i][1])
-        #     spotc = int(spot_points[i][0])
-        #     frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
-        # #End spot    
 
-        # frame /= 1.1
-        # frame = int(frame)
-        # #[r:r+h,c:c+w,:] /= 4
         frame = np.double(frame)
+        r, c, h, w = int(r), int(c), int(h), int(w)
+        #frame[int(r):int(r+h),int(c):int(c+w),:] += 100
 
-        frame = frame - 100
-        frame[int(r):int(r+h),int(c):int(c+w),:] += 100
+        center = (np.float32(c + int(w/2)), np.float32(r + int(h/2)))
+        radius = 125
+        color = (0, 255, 255)
+        thickness = 2
+        cv2.circle(frame, center, radius, color, thickness)
+
+        mask = np.zeros((frame.shape[0], frame.shape[1]), np.uint8)
+        cv2.circle(mask, center, radius, 255, -1)
+        change = np.where(mask != 255)
+
+        frame[change[0], change[1], :] -= 150
         frame[frame < 0] = 0
         frame = np.uint8(frame)
-
-        # frameHSV  = cv2.cvtColor(frame, cv2.COLOR_RGB2HLS)
-        # frameHSV = frameHSV[:,:,2] - 20
-        # frameHSV[frameHSV < 0] = 0
-        # frame = cv2.cvtColor(frameHSV, cv2.COLOR_HSV2BGR)
-        #
-        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Draw it on image
         # pts = cv2.boxPoints(ret)
         # pts = np.int0(pts)
         #img2 = cv2.polylines(frame, np.int32([pts]), True, 255, 2)
-
         cv2.imshow('img2', frame)
 
         # End if escape key is pressed
