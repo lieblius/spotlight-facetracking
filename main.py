@@ -83,7 +83,7 @@ spot_pivot_new = spot_pivot @ rot
 
 # Party
 color_count = 0
-current_color = np.linspace(50,150)
+current_color = np.linspace(0,100)
 channel = 0
 while True:
     # time.sleep(1)
