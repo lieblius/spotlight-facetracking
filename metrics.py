@@ -2,6 +2,7 @@ import sys
 from copy import deepcopy
 
 from config import *
+from meanShift import calculatePoints
 from utils import *
 
 
@@ -76,6 +77,7 @@ def main():
         if ret:
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             # dst = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1)
+            # dst = calcBackProject(hsv, roi_hist)
             # mask = cv2.bitwise_not(cv2.inRange(hsv, np.array([10, 40, 100]), np.array([26, 70, 240])))
             mask = cv2.inRange(hsv, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
             dst = mask
@@ -101,7 +103,7 @@ def main():
             cv2.putText(img,
                         f'Running Avg IOU: {round(running_iou, 3)}',
                         (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
-            cv2.imshow('img2', img)
+            cv2.imshow('metrics', img)
 
             k = cv2.waitKey(DELAY) & 0xff
             if k == 27:
@@ -116,6 +118,8 @@ def main():
     plt.figure()
     plt.plot(total_iou)
     plt.ylim([0, 1])
+    plt.xlabel("Frame #")
+    plt.ylabel("IOU")
     plt.show()
 
 

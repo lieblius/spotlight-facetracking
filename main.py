@@ -1,6 +1,7 @@
 import sys
 
 from config import *
+from meanShift import calculatePoints
 from utils import *
 
 
