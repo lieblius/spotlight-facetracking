@@ -1,181 +1,86 @@
-import numpy as np
-import cv2
-import time
-import math
-from copy import deepcopy
-from meanShift import calculatePoints
-from backProject import calcBackProject
 import sys
-import logging
-from PIL import Image
-import matplotlib.pyplot as plt
 
+from utils import *
 
 NUM_ITERAIONS = 10
-DELAY = 30  # in milliseconds
+SPOTLIGHT_RADIUS = 125
+DELAY = 1  # in milliseconds
 
-#cap = cv2.VideoCapture('vid2.mp4')
-cap = cv2.VideoCapture(0)
 
-# take first frame of the video
-ret, frame = cap.read()
+def main():
+    # Read in video
+    if len(sys.argv) == 2:
+        cap = cv2.VideoCapture(sys.argv[-1])
+        if not cap.isOpened():
+            print('Please enter a valid video path "python main.py <video_path>", or no path to capture from webcam.')
+            quit(1)
+    else:
+        cap = cv2.VideoCapture(0)
 
-# setup initial location of window
-gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-face = detector.detectMultiScale(gray, 1.1, 4)
-while len(face) == 0:
-    ret, frame = cap.read()
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-    face = detector.detectMultiScale(gray, 1.1, 4)
-# r,h,c,w = 250,90,400,125  # simply hardcoded the values
-# print(face)
-(c, r, w, h) = face[0]
-frame2 = deepcopy(frame)
-cv2.rectangle(frame2, (c, r), (c + w, r + h), (255, 0, 0), 2)
-#cv2.imshow('img', frame2)
-track_window = tuple(face[0])
+    # Read frames until a face is detected
+    frame = None
+    faces = []
+    track_window = None
+    while len(faces) == 0:
+        _, frame = cap.read()
+        faces = detect_faces(frame)
+    track_window = faces[0]
 
-# set up the ROI for tracking
-roi = frame[r:r + h, c:c + w]
-#cv2.imshow('roi', roi)
-hsv_roi = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-mask = cv2.inRange(hsv_roi, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
-#cv2.imshow('mask', mask)
-roi_hist = cv2.calcHist([hsv_roi], [0, 1], mask, [180, 256], [0, 180, 0, 256])
-cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
+    # Initialize Spotlight and Party objects
+    spot = Spotlight(frame)
+    party_filter = Party()
 
-# Setup the termination criteria, either 10 iteration or move by at least 1 pt
-term_crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
+    # Main loop
+    while True:
+        # Get next frame if there is one
+        ret, frame = cap.read()
+        if ret:
+            # Convert to HSV and compute skin tone mask for the current frame
+            dst = cv2.inRange(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), np.array((0., 60., 32.)),
+                              np.array((180., 255., 255.)))
 
-# for x, y in dst:
-# if rad^2 >= (x-center[0])^2 + (y - center[1])^2:
-#   add point to be counted in calculating the center of mass (r, c, intensity)
+            # Run meanshift for the specified number of iterations
+            for i in range(NUM_ITERAIONS):
+                pts, track_window = calculatePoints(track_window, dst)
 
-#Spotlight Things
-spotlight_raw_bgr = plt.imread("spotlight.png")
-spotlight_raw_rgb = cv2.cvtColor(spotlight_raw_bgr, cv2.COLOR_BGR2RGB)
-frame_h, frame_w = frame.shape[0], frame.shape[1]
-spot_w = int(frame_w / 7)
-spot_h = int(spotlight_raw_rgb.shape[0] * spot_w / spotlight_raw_rgb.shape[1])
-spot_pivot = np.array([int(spot_w * (15/64)), int(spot_h * (15/87)), 1])
+            # Allow intra-pixel computation
+            frame = frame.astype(np.double)
 
-glob_spot_start = np.array([int((frame_w / 2) - spot_pivot[0]), int((frame_h / 15) - spot_pivot[1]), 1])
-glob_spot_mid = np.array([int(frame_w / 2), int(frame_h / 12), 1])
+            # Generate circular mask
+            mask = calc_circle_mask(frame, track_window, SPOTLIGHT_RADIUS)
 
-spotlight_rgb = cv2.resize(spotlight_raw_rgb, (spot_w, spot_h))
-spotlight_bgr = cv2.resize(spotlight_raw_bgr, (spot_w, spot_h))
+            # Darken background
+            background = np.where(mask != 255)
+            frame[background[0], background[1], :] -= 150
 
-rotv = -0.42
-rot= np.array([[np.cos(rotv), -np.sin(rotv), 0], [np.sin(rotv), np.cos(rotv), 0], [0, 0, 1]])
-spot_points = np.ones((1,3))
+            # Overlay spotlight image
+            imgr, imgc, spotr, spotc = spot.calc(track_window)
+            frame[imgr, imgc, :] = spot.spotlight_rgb[spotr, spotc, :3] * 255
 
-for i in range(spot_h):
-    for j in range(spot_w):
-        if(spotlight_bgr[i,j,3] != 0):
-            point = np.array([[j, i, 1]]) #we put this in an x, y, coordinate
-            spot_points = np.vstack((spot_points, point))
+            # Apply party mode
+            foreground = np.where(mask == 255)
+            frame[foreground[0], foreground[1], party_filter.current_channel] += party_filter.get_current_color()
+            party_filter.next_color()
 
-spot_points = np.delete(spot_points, 0, 0)
-spot_points_rot = spot_points @ rot
-spot_pivot_new = spot_pivot @ rot
+            # Fix under/overflow
+            frame[frame < 0] = 0
+            frame[frame > 255] = 255
+            frame = np.uint8(frame)
 
-# Party
-color_count = 0
-current_color = np.linspace(0,100)
-channel = 0
-while True:
-    # time.sleep(1)
-    ret, frame = cap.read()
+            # Display the current frame
+            cv2.imshow('The Spotlight\'s On You', frame)
 
-    if ret:
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        # dst = calcBackProject(hsv, roi_hist)
-        # dst = cv2.calcBackProject([hsv], [0], roi_hist, [0, 180], 1 )
-        mask = cv2.inRange(hsv, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
-        dst = mask
+            # Exit loop if escape key is pressed
+            if cv2.waitKey(DELAY) & 0xff == 27:
+                break
 
-        # apply meanshift to get the new location
-        # ret, track_window = cv2.CamShift(dst, track_window, term_crit)
-
-        pts = 0
-        for i in range(NUM_ITERAIONS):
-            pts, track_window = calculatePoints(track_window, 10, dst)
-
-        c, r, w, h = track_window
-        #Start spot
-        face_mid = np.array([int(c + w/2), int(r + h/2), 1])
-        dif = glob_spot_mid - face_mid
-        rotv = -math.atan2(dif[1], dif[0]) - 2.05
-        
-        rot = np.array([[np.cos(rotv), -np.sin(rotv), 0], [np.sin(rotv), np.cos(rotv), 0], [0, 0, 1]])
-        spot_points_rot = spot_points @ rot
-        spot_pivot_new = spot_pivot @ rot
-        spot_pivot_diff = spot_pivot_new - spot_pivot
-        
-        imgr = spot_points_rot[:,1].astype(np.int32) + int(glob_spot_start[1]) - int(spot_pivot_diff[1])
-        imgc = spot_points_rot[:,0].astype(np.int32) + int(glob_spot_start[0]) - int(spot_pivot_diff[0])
-        spotr = spot_points[:,1].astype(np.int32)
-        spotc = spot_points[:,0].astype(np.int32)
-        
-        # frame[imgr, imgc, :]  = spotlight_rgb[spotr, spotc, :3]*255
-
-        frame = np.double(frame)
-        r, c, h, w = int(r), int(c), int(h), int(w)
-        #frame[int(r):int(r+h),int(c):int(c+w),:] += 100
-
-        center = (np.float32(c + int(w/2)), np.float32(r + int(h/2)))
-        radius = 125
-        color = (0, 255, 255)
-        thickness = 2
-        cv2.circle(frame, center, radius, color, thickness)
-
-        mask = np.zeros((frame.shape[0], frame.shape[1]), np.uint8)
-        cv2.circle(mask, center, radius, 255, -1)
-        change = np.where(mask != 255)
-
-        frame[change[0], change[1], :] -= 150
-        frame[imgr, imgc, :] = spotlight_rgb[spotr, spotc, :3] * 255
-        ###### Party
-        change = np.where(mask == 255)
-        frame[change[0], change[1], channel] += current_color[color_count]
-        if color_count == len(current_color)-1:
-            color_count = 0
-            if channel == 2:
-                channel = 0
-            else:
-                channel += 1
         else:
-            color_count += 1
-
-        ######
-        frame[frame < 0] = 0
-        frame[frame > 255] = 255
-        frame = np.uint8(frame)
-
-        # Draw it on image
-        # pts = cv2.boxPoints(ret)
-        # pts = np.int0(pts)
-        #img2 = cv2.polylines(frame, np.int32([pts]), True, 255, 2)
-        cv2.imshow('img2', frame)
-
-        # End if escape key is pressed
-        if cv2.waitKey(DELAY) & 0xff == 27:
             break
 
-    else:
-        break
-
-cv2.destroyAllWindows()
-cap.release()
+    # Cleanup
+    cv2.destroyAllWindows()
+    cap.release()
 
 
-# #input track_window
-# #output np array of points representing bounding box
-#This might be wrong
-def makeBoundingBox(track_window):
-    return np.array([[track_window[0], track_window[1]],
-                     [track_window[0]+ track_window[2], track_window[1]],
-                     [track_window[0], track_window[1] + track_window[3]],
-                     [track_window[0]+ track_window[2], track_window[1] + track_window[3]]])
+if __name__ == "__main__":
+    main()
