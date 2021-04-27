@@ -1,10 +1,7 @@
 import sys
 
+from config import *
 from utils import *
-
-NUM_ITERAIONS = 10
-SPOTLIGHT_RADIUS = 125
-DELAY = 1  # in milliseconds
 
 
 def main():
@@ -20,7 +17,6 @@ def main():
     # Read frames until a face is detected
     frame = None
     faces = []
-    track_window = None
     while len(faces) == 0:
         _, frame = cap.read()
         faces = detect_faces(frame)
@@ -40,7 +36,7 @@ def main():
                               np.array((180., 255., 255.)))
 
             # Run meanshift for the specified number of iterations
-            for i in range(NUM_ITERAIONS):
+            for i in range(NUM_ITERATIONS):
                 pts, track_window = calculatePoints(track_window, dst)
 
             # Allow intra-pixel computation
