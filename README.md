@@ -1,4 +1,4 @@
-# OpenCVDemo
+# spotlight-facetracking
 
 Setup 
 ```
