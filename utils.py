@@ -17,7 +17,7 @@ def calc_circle_mask(frame, track_window, radius=125):
     c, r, w, h = track_window
     r, c, h, w = int(r), int(c), int(h), int(w)
 
-    center = (np.float32(c + int(w / 2)), np.float32(r + int(h / 2)))
+    center = int(np.float32(c + int(w / 2))), int(np.float32(r + int(h / 2)))
     color = (0, 255, 255)
     thickness = 2
     cv2.circle(frame, center, radius, color, thickness)
