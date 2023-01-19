@@ -8,7 +8,12 @@ Yes we danced in the presentation, I'm cringing a little but I'll leave the demo
   <img src="https://media.giphy.com/media/CqNRw9ewWK4YsG0iLL/giphy.gif"/>
 </p>
 
-Setup 
+<p align="center">
+  <img src="https://i.imgur.com/SSxrNTA.png", height="500"/>
+  <img src="https://i.imgur.com/QZaDxYw.png", height="500"/>
+</p>
+
+## 
 ```
 pip install -r requirements.txt
 python main.py
